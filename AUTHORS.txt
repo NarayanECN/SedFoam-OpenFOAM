@@ -1,0 +1,4 @@
+AUTHORS
+ * Andy Reagan 
+ * Cyrille Bonamy (LEGI UMR 5519 - Grenoble - France)
+Cyrille.Bonamy (A) univ-grenoble-alpes.fr
