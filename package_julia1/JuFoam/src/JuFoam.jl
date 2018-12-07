@@ -1,4 +1,4 @@
-module OpenFOAM
+module JuFoam
 # that is the name of the module, but it's also only different from the
 # new type that it defines by case (the type is OpenFoam)
 
@@ -17,9 +17,10 @@ function stringG(a::Number)
 end
 
 # abstract model type to subclass Lorenz63,OpenFOAM from
-abstract Model
+abstract type Model end
 
-type Lorenz63 <: Model
+#abstract type Lorenz63 <: Model end
+struct Lorenz63
     # x::Array(Float64,1)
     x
     dt::Function
@@ -62,7 +63,7 @@ Lorenz63() = Lorenz63(J)
 
 # main (only) type
 # want to be able to store all case-related information
-type OpenFoam
+struct OpenFoam
     caseFolder::String
     controlDict::OrderedDict
     fvSchemes::OrderedDict
@@ -335,7 +336,7 @@ function create_defaultT()
     defaultT["boundaryField"]["bottomoutside"]["fractionExpression"] = "\"0\""
     defaultT["boundaryField"]["bottomoutside"]["variables"] = "\"Text=340;hc=225;gradT=(Text-T)*hc;\""
     defaultT["boundaryField"]["bottomoutside"]["timelines"] = ()
-    
+
     defaultT
 end
 
@@ -364,7 +365,7 @@ function create_defaultPhi()
     defaultPhi["boundaryField"]["bottomoutside"] = OrderedDict()
     defaultPhi["boundaryField"]["bottomoutside"]["type"] = "calculated"
     defaultPhi["boundaryField"]["bottomoutside"]["value"] = "uniform 0" # nonuniform 0()
-    
+
     defaultPhi
 end
 
@@ -381,7 +382,7 @@ function create_defaultU()
     defaultU["boundaryField"]["back"]["type"] = "empty"
     defaultU["boundaryField"]["topinside"] = OrderedDict()
     defaultU["boundaryField"]["topinside"]["type"] = "fixedValue"
-    defaultU["boundaryField"]["topinside"]["value"] = "uniform (0 0 0)" 
+    defaultU["boundaryField"]["topinside"]["value"] = "uniform (0 0 0)"
     defaultU["boundaryField"]["topoutside"] = OrderedDict()
     defaultU["boundaryField"]["topoutside"]["type"] = "fixedValue"
     defaultU["boundaryField"]["topoutside"]["value"] = "uniform (0 0 0)"
@@ -391,7 +392,7 @@ function create_defaultU()
     defaultU["boundaryField"]["bottomoutside"] = OrderedDict()
     defaultU["boundaryField"]["bottomoutside"]["type"] = "fixedValue"
     defaultU["boundaryField"]["bottomoutside"]["value"] = "uniform (0 0 0)"
-    
+
     defaultU
 end
 
@@ -418,7 +419,7 @@ function create_defaultP()
     defaultP["boundaryField"]["bottomoutside"] = OrderedDict()
     defaultP["boundaryField"]["bottomoutside"]["type"] = "calculated"
     defaultP["boundaryField"]["bottomoutside"]["value"] = "uniform 0" # nonuniform 0()
-    
+
     defaultP
 end
 
@@ -452,25 +453,27 @@ end
 # OpenFoam(folder) = OpenFoam(folder,defaultControlDict,defaultTurbulenceProperties,create_defaultT(),defaultMeshParam,defaultMesh)
 OpenFoam(folder) = OpenFoam(folder,create_defaultControlDict(),create_defaultFvSchemes(),create_defaultFvSolution(),create_defaultSetFieldsDict(),create_defaultRASProperties(),create_defaultTransportProperties(),create_defaultTurbulenceProperties(),create_defaultG(),create_defaultBlockMeshDict(),create_defaultT(),create_defaultPhi(),create_defaultU(),create_defaultP(),create_defaultMeshParam(),create_defaultMesh())
 
-header = """/*--------------------------------*- C++ -*----------------------------------*\
-| =========                |                                                 |
+header = """/*--------------------------------*- C++ -*----------------------------------*\\
+| =========                 |                                                 |
 | \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
 |  \\    /   O peration     | Version:  2.2.1                                 |
 |   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
 |    \\/     M anipulation  |                                                 |
-\*---------------------------------------------------------------------------*/"""
+|---------------------------------------------------------------------------*/"""
 
 lbreak = "// ************************************************************************* //\n\n"
 
 # stolen from dictutils
-type CompactRepr
+struct CompactRepr
   keySeparator::String
   entrySeparator::String
 end
 
 DefaultCompactRepr = CompactRepr(" ", "\n\n")
 
-function showCompact{K,V}(m::OrderedDict{K,V}, config::CompactRepr)
+function showCompact(m::OrderedDict, config::CompactRepr)
+#function showCompact{K,V}(m::OrderedDict{K,V}, config::CompactRepr)
+
   # Note that without the typehint on the Array, this will somehow get
   # converted to nothing on empty input.
   return join(
@@ -480,8 +483,9 @@ function showCompact{K,V}(m::OrderedDict{K,V}, config::CompactRepr)
   )
 end
 
-showCompact{K,V}(m::OrderedDict{K,V}) = showCompact(m, DefaultCompactRepr)
-# end stolen from dictutils
+ showCompact(m::OrderedDict) = showCompact(m, DefaultCompactRepr)
+# showCompact{K,V}(m::OrderedDict{K,V}) = showCompact(m, DefaultCompactRepr)
+ # end stolen from dictutils
 
 function writeDict(o::OpenFoam,d::OrderedDict,name::String,location::String,class::String)
     # mkdir(join([o.caseFolder,location],"/"))
@@ -498,7 +502,7 @@ function writeDict(o::OpenFoam,d::OrderedDict,name::String,location::String,clas
     write(f,lbreak)
 
     # write the main info
-    maininfo = string(serializeD(d),"\n\n") 
+    maininfo = string(serializeD(d),"\n\n")
     write(f,maininfo)
 
     write(f,lbreak)
@@ -510,7 +514,7 @@ writeDict(o::OpenFoam,d::OrderedDict,name::String,location::String) = writeDict(
 writeDict(o) = writeDict(o,o.controlDict,"controlDict","system")
 
 function serializeD(d::OrderedDict)
-  join(String["\n" * string(k) * " " * serializeDinner(v,1) for (k, v) in d],"\n")    
+  join(String["\n" * string(k) * " " * serializeDinner(v,1) for (k, v) in d],"\n")
 end
 
 function serializeDinner(d::OrderedDict,depth::Int)
@@ -522,7 +526,7 @@ function serializeDinner(d::OrderedDict,depth::Int)
 end
 
 function serializeDinner(a::Array,depth::Int)
-    if typeof(a[1]) == ASCIIString
+    if typeof(a[1]) == String
         # println("joining array")
         # println(a)
         # println(join(a,"\n"))
@@ -604,7 +608,7 @@ function copyFromBase(o::OpenFoam,files::Array,baseCase::String)
     for file in files
         s = join([baseCase,file],"/")
         d = join([o.caseFolder,file],"/")
-        # println("copying $(s) to $(d)")
+        println("copying $(s) to $(d)")
         cp(s,d)
 	if file == "Allrun"
 	    run(`chmod +x $d`)
@@ -617,8 +621,8 @@ allFilesTurbulent = ["Allrun","0/alphat","0/epsilon","0/k","0/nut","0/p","0/p_rg
 allFiles = ["Allrun","0/alphat","0/p","0/p_rgh","0/T","0/U"]
 # meshFiles = [join(["constant","polyMesh",x],"/") for x in ["blockMeshDict","blockMeshDict3D","boundary","faces","neighbour","owner","points"]]
 meshFiles = [join(["constant","polyMesh",x],"/") for x in ["boundary","faces","neighbour","owner","points"]]
-
-copyFromBase(o::OpenFoam,baseCase::String) = copyFromBase(o::OpenFoam,append!(allFiles,meshFiles),baseCase::String)
+meshallFiles = append!(allFiles,meshFiles)
+copyFromBase(o::OpenFoam,baseCase::String) = copyFromBase(o::OpenFoam,meshallFiles,baseCase::String)
 
 function initCase(o::OpenFoam,baseCase::String)
     # println("making sure folders exist")
@@ -682,10 +686,10 @@ end
 function readMesh(o::OpenFoam)
     # give this function level scope
     numcells = 0
-    
+
     # read the mesh from the case
     # goal is to fill up the mesh property
-    
+
     # first read the points
     f = open(join([o.caseFolder,"constant","polyMesh","points"],"/"),"r")
     b = false
@@ -704,7 +708,7 @@ function readMesh(o::OpenFoam)
         if m != nothing
             i=i+1
             o.fullMesh["points"][:,i] = map(float,m.captures)
-        end        
+        end
     end
     close(f)
     # println("here are some points")
@@ -770,7 +774,7 @@ function readMesh(o::OpenFoam)
             end
             o.fullMesh["cellFaces"][j,int(m.captures[1])+1] = i
             o.fullMesh["owner"][i] = int(m.captures[1])+1
-        end        
+        end
     end
     close(f)
     # println(o.fullMesh["cellFaces"][:,100:110])
@@ -794,7 +798,7 @@ function readMesh(o::OpenFoam)
                 j=j+1
             end
             o.fullMesh["cellFaces"][j,int(m.captures[1])+1] = i
-        end        
+        end
     end
     close(f)
     # println(o.fullMesh["cellFaces"][:,100:110])
@@ -813,7 +817,7 @@ function readMesh(o::OpenFoam)
         end
         o.fullMesh["cellCenters"][:,i] = center/24
     end
-    
+
     # println(o.fullMesh["cellCenters"][:,100:110])
 
     # faces, cells
@@ -895,7 +899,7 @@ function rewriteVar(o::OpenFoam,t::String,v::String,var::Array)
     # t is the time (a string!)
     # v is the variable name, "T"
     # var is the array of the variable
-    
+
     cd(o.caseFolder)
     f = open(join([t,v],"/"),"r")
     b = false
@@ -933,7 +937,7 @@ function rewriteVar(o::OpenFoam,t::String,v::String,var::Array)
         end
     end
     i = 0
-    println(size(var))
+    #println(size(var))
 
     b = false
     while !b
@@ -1046,7 +1050,7 @@ function takeSlices(o::OpenFoam)
                 append!(points[2],[i])
             else # left
                 append!(points[4],[i])
-            end        
+            end
         end
     end
     # return points
@@ -1095,7 +1099,7 @@ function findTimes(o::OpenFoam)
     #         append!(times,int(m.captures[1]))
     #     end
     # end
-    for line in split(readall(`ls`),"\n")
+    for line in readdir()
         i = match(r"^([0-9]+)$",line)
         f = match(r"^([0-9]+\.[0-9]+)$",line)
         # println(line)
@@ -1104,12 +1108,13 @@ function findTimes(o::OpenFoam)
             # println(i)
             if length(times) > 0
                 if typeof(times[1]) == Int64
-                    append!(times,[int(i.captures[1])])
+                    append!(times,[parse(Int64,i.captures[1])])
                 else
-                    append!(times,[float(i.captures[1])])
+                    append!(times,[parse(Float64,i.captures[1])])
                 end
             else
-                append!(times,[int(i.captures[1])])
+                append!(times,[parse(Int64,i.captures[1])])
+                # append!(times,[int(i.captures[1])])
             end
         end
         if f != nothing
@@ -1137,7 +1142,7 @@ cd /users/a/r/areagan/work/2014/11-julia-openfoam
 
 function run(o::OpenFoam,c::Cmd,q::String)
     println("submitting the qsub job")
-    cd(o.caseFolder)	
+    cd(o.caseFolder)
 
     walltime = "30:00:00"
     jobname = "foamBCTest"
@@ -1224,7 +1229,7 @@ function atan3(x,y)
     end
     th
 end
-    
+
 function reshapeMesh(case)
     # don't need the result, but I do want to read the mesh
     readMesh(case)
@@ -1251,10 +1256,10 @@ function reshapeMesh(case)
     for i in 1:size(case.fullMesh["cellCenters"])[2]
         # println("i is $(i)")
         # start them at the right side, go counter clockwise
-        # arctan(z/y) where y is right the right (adjacent), 
+        # arctan(z/y) where y is right the right (adjacent),
         # z is up (opposite)
         th = atan3(case.fullMesh["cellCenters"][3,i],case.fullMesh["cellCenters"][2,i])
-        
+
         r = sqrt(case.fullMesh["cellCenters"][3,i]^2+case.fullMesh["cellCenters"][2,i]^2)
         # println("th is $(th)")
         # println("r is $(r)")
@@ -1299,14 +1304,3 @@ function reshapeMesh(case)
 end
 
 end
-
-
-
-
-
-
-
-
-
-
-

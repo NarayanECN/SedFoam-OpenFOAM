@@ -1,0 +1,7 @@
+authors = ["bonamy2c "]
+name = "JuFoam"
+uuid = "15b2a82e-f99b-11e8-0ca8-4b12cacc120d"
+version = "0.1.0"
+
+[deps]
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
